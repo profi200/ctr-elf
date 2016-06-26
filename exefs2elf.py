@@ -43,7 +43,7 @@ def doit(tempdir, fn):
 
 	final_name = os.path.basename(fn)
 	if '.' in final_name:
-		final_name = final_name.split('.')[-1]
+		final_name = '.'.join(final_name.split('.')[:-1])
 	final_name += ".elf"
 	final = os.path.join(get_current_dir(), final_name)
 
