@@ -19,19 +19,19 @@ PHDRS
 
 SECTIONS
 {
-    .init : ALIGN(0x1000)
+    .init : ALIGN(4)
     {
         __text_start = .;
         KEEP (*(.init))
         /*. = ALIGN(4);   REQUIRED. LD is flaky without it. */
     } >memregion :text
-        
-    .plt : 
-    { 
-        *(.plt) 
+
+    .plt :
+    {
+        *(.plt)
     } >memregion = 0xff
 
-    .text : ALIGN (0x1000)
+    .text : ALIGN (4)
     {
 
         *(.text*)
@@ -41,13 +41,6 @@ SECTIONS
         *(.gnu.linkonce.t*)
         *(.glue_7)
         *(.glue_7t)
-        /*. = ALIGN(4);   REQUIRED. LD is flaky without it. */
-    } >memregion
-
-    .fini :
-    {
-        KEEP (*(.fini))
-        . = ALIGN(0x1000);
     } >memregion
 
     __text_end = .;
@@ -60,7 +53,6 @@ SECTIONS
         *(.rodata.*)
         *(.gnu.linkonce.r*)
         SORT(CONSTRUCTORS)
-        . = ALIGN(0x1000);   /* REQUIRED. LD is flaky without it. */
     } >memregion :rodata
 
     .ARM.extab : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >memregion
@@ -71,7 +63,7 @@ SECTIONS
 /* Ensure the __preinit_array_start label is properly aligned.  We
    could instead move the label definition inside the section, but
    the linker would then create the section even if it turns out to
-   be empty, which isn't pretty.  */
+   be empty, which isn't pretty. */
     . = ALIGN(32 / 8);
     PROVIDE (__preinit_array_start = .);
     .preinit_array : { KEEP (*(.preinit_array)) } >memregion : data
@@ -79,64 +71,6 @@ SECTIONS
     PROVIDE (__init_array_start = .);
     .init_array : { KEEP (*(.init_array)) } >memregion : data
     PROVIDE (__init_array_end = .);
-    PROVIDE (__fini_array_start = .);
-    .fini_array : { KEEP (*(.fini_array)) } >memregion = 0xff
-    PROVIDE (__fini_array_end = .);
-
-    .ctors : ALIGN(0x1000)
-    {
-    /* gcc uses crtbegin.o to find the start of the constructors, so
-        we make sure it is first.  Because this is a wildcard, it
-        doesn't matter if the user does not actually link against
-        crtbegin.o; the linker won't look for a file to match a
-        wildcard.  The wildcard also means that it doesn't matter which
-        directory crtbegin.o is in.  */
-        KEEP (*crtbegin.o(.ctors))
-        KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
-        KEEP (*(SORT(.ctors.*)))
-        KEEP (*(.ctors))
-        /*. = ALIGN(4);    REQUIRED. LD is flaky without it. */
-    } >memregion = 0xff
-
-    .dtors : ALIGN(0x1000)
-    {
-        KEEP (*crtbegin.o(.dtors))
-        KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
-        KEEP (*(SORT(.dtors.*)))
-        KEEP (*(.dtors))
-        /*. = ALIGN(4);    REQUIRED. LD is flaky without it. */
-    } >memregion = 0xff
-
-    .eh_frame : ALIGN(0x1000)
-    {
-        KEEP (*(.eh_frame))
-        /*. = ALIGN(4);    REQUIRED. LD is flaky without it. */
-    } >memregion = 0xff
-
-    .gcc_except_table : ALIGN(0x1000)
-    {
-        *(.gcc_except_table)
-        /*. = ALIGN(4);    REQUIRED. LD is flaky without it. */
-    } >memregion = 0xff
-    
-    .jcr : { KEEP (*(.jcr)) } >memregion = 0
-
-    .got :
-    {
-        __got_start = ABSOLUTE(.);
-        *(.got.plt) *(.got)
-    } >memregion = 0
-    __got_end = . ;
-    
-    .memregion ALIGN(4) :
-    {
-        __memregion_start = ABSOLUTE(.);
-        *(.memregion)
-        *memregion.*(.text)
-        . = ALIGN(4);   /* REQUIRED. LD is flaky without it. */
-        __memregion_end = ABSOLUTE(.);
-    } >memregion = 0xff
-
 
     .data ALIGN(4) :
     {
@@ -145,11 +79,10 @@ SECTIONS
         *(.data.*)
         *(.gnu.linkonce.d*)
         CONSTRUCTORS
-        . = ALIGN(0x1000);
         __data_end = ABSOLUTE(.);
     } >memregion : data
 
-    .bss ALIGN(0x1000) :
+    .bss ALIGN(4) :
     {
         . = . + %bsssize%;
     } >memregion : bss
@@ -195,7 +128,7 @@ SECTIONS
     .debug_funcnames 0 : { *(.debug_funcnames) }
     .debug_typenames 0 : { *(.debug_typenames) }
     .debug_varnames  0 : { *(.debug_varnames) }
-    
+
     .stack 0x80000 : { _stack = .; *(.stack) }
     /* These must appear regardless of  .  */
 }
