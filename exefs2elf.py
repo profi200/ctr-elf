@@ -106,14 +106,13 @@ def main():
 		exit()
 
 	fn = sys.argv[1]
+
 	tempdir = mkdtemp()
-	#tempdir = "workdir"
 	if not tempdir:
 		print("[-] Failed to make temporary directory.")
 		exit()
 
 	doit(tempdir, fn)
-
 	rmtree(tempdir)
 
 if __name__ == '__main__':
