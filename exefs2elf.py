@@ -2,55 +2,119 @@
 import sys
 import os
 import struct
+from subprocess import call
+from tempfile import mkdtemp
+from shutil import rmtree
+from functools import partial
 
+CTRTOOL = "./ctrtool"
 CC = "arm-none-eabi-gcc"
 CP = "arm-none-eabi-g++"
 OC = "arm-none-eabi-objcopy"
 LD = "arm-none-eabi-ld"
 
-def run(cmd):
-	os.system(cmd)
+#ctrtool --contents=contents whatever.cia
 
-def writefile(path, s):
+#ctrtool -p --exefs=exefs.bin contents.0000.00000000
+#ctrtool -t exefs --exefsdir=exefs --decompresscode exefs.bin
+
+#ctrtool -p --romfs=romfs.bin contents.0000.00000000
+#ctrtool -t romfs --romfsdir=romfs romfs.bin
+
+def get_current_dir():
+	return os.path.dirname(os.path.realpath(__file__))
+
+def write_file(path, s):
 	with open(path, "wb") as f:
-		f.write(str(s))
+		f.write(s)
 
-with open("workdir/exh.bin", "rb") as f:
-	exh = f.read(64)
+def read_file(path):
+	with open(path, "rb") as f:
+		return f.read()
 
-(textBase, textPages, textSize, textStackSize, roAddress, roPages, roSize, _, rwAddress, rwSize, rwPages, bssSize) = struct.unpack('16x ii iii i iii i i i', exh)
-bssSize  = (int(bssSize / 0x1000) + 1) * 0x1000
+def page_align(address):
+	return ((address + (0x1000 - 1)) / 0x1000) * 0x1000
 
-print("textBase: {:08x}".format(textBase))
-print("textSize: {:08x}".format(textSize))
-print("roSize:   {:08x}".format(roSize))
-print("rwSize:   {:08x}".format(rwSize))
-print("bssSize:  {:08x}".format(bssSize))
+def doit(tempdir, fn):
+	exefs  = os.path.join(tempdir, 'exefs')
+	exhbin = os.path.join(tempdir, 'exh.bin')
+	e2elf  = os.path.join(tempdir, 'e2elf.ld')
+	code   = os.path.join(exefs, 'code.bin')
 
-if (textBase != 0x100000):
-	print('WARNING: textBase mismatch, might be an encrypted exheader file.')
+	final_name = os.path.basename(fn)
+	if '.' in final_name:
+		final_name = final_name.split('.')[-1]
+	final_name += ".elf"
+	final = os.path.join(get_current_dir(), final_name)
 
-exefsPath = 'workdir/exefs/'
-with open(exefsPath + 'code.bin', "rb") as f:
-	text = f.read(textSize)
-	ro = f.read(roSize)
-	rw = f.read(rwSize)
+	call([CTRTOOL, "-x", "--exefsdir=" + exefs, fn])
+	call([CTRTOOL, "-x", "--exheader=" + exhbin, fn])
 
-with open('e2elf.ld', 'r') as f:
-	ldscript = f.read()
-ldscript = ldscript.replace('%memorigin%', str(textBase))
-ldscript = ldscript.replace('%bsssize%', str(bssSize))
-writefile('workdir/e2elf.ld', ldscript)
+	with open(exhbin, "rb") as f:
+		exh = f.read(64)
 
-writefile(exefsPath + 'text.bin', text)
-writefile(exefsPath + 'ro.bin', ro)
-writefile(exefsPath + 'rw.bin', rw)
+	# exheader:
+	#   0x10: .text CSI
+	#   0x20: .ro CSI
+	#   0x30: .data CSI
+	#   0x3c: .bss size
+	# CSI:
+	#   0x00: addr
+	#   0x04: physical region size in pages
+	#   0x08: section size in bytes
+	(textBase, textSize, roSize, rwSize, bssSize) = struct.unpack('16x I4xI4x 4x4xI4x 4x4xII', exh)
+	#bssSize = page_align(bssSize)
 
-objfiles = ''
-for i in (('text', 'text'), ('ro', 'rodata'), ('rw', 'data')):
-	desc, sec_name = i
-	run('{0} -I binary -O elf32-littlearm --rename-section .data=.{1} {2}{3}.bin {2}{3}.o'
-        .format(OC, sec_name, exefsPath, desc))
-	objfiles += '{0}{1}.o '.format(exefsPath, desc)
+	print("textBase: {:08x}".format(textBase))
+	print("textSize: {:08x}".format(textSize))
+	print("roSize:   {:08x}".format(roSize))
+	print("rwSize:   {:08x}".format(rwSize))
+	print("bssSize:  {:08x}".format(bssSize))
 
-run(LD + ' --accept-unknown-input-arch -T workdir/e2elf.ld -o workdir/exefs.elf ' + objfiles)
+	if (textBase != 0x100000):
+		print('WARNING: textBase mismatch, might be an encrypted exheader file.')
+
+	with open(code, "rb") as f:
+		text = f.read(textSize)
+		ro = f.read(roSize)
+		rw = f.read(rwSize)
+
+	with open('e2elf.ld', 'r') as f:
+		ldscript = f.read()
+
+	ldscript = ldscript.replace('%memorigin%', str(textBase))
+	ldscript = ldscript.replace('%bsssize%', str(bssSize))
+	write_file(e2elf, ldscript)
+
+	write_file(os.path.join(exefs, 'text.bin'), text)
+	write_file(os.path.join(exefs, 'ro.bin'), ro)
+	write_file(os.path.join(exefs, 'rw.bin'), rw)
+
+	objfiles = []
+	for desc, sec_name in (('text', 'text'), ('ro', 'rodata'), ('rw', 'data')):
+		call([OC, "-I", "binary", "-O", "elf32-littlearm", "--rename-section",
+				  ".data=."+sec_name,
+					os.path.join(exefs, desc+".bin"),
+					os.path.join(exefs, desc+".o")])
+		objfiles.append(os.path.join(exefs, desc + ".o"))
+
+	call([LD, '--accept-unknown-input-arch', '-T', e2elf, '-o', final] + objfiles)
+
+def main():
+	if len(sys.argv) != 2:
+		print("Usage: {} [input file]".format(sys.argv[0]))
+		exit()
+
+	fn = sys.argv[1]
+	tempdir = mkdtemp()
+	#tempdir = "workdir"
+	if not tempdir:
+		print("[-] Failed to make temporary directory.")
+		exit()
+
+	doit(tempdir, fn)
+
+	rmtree(tempdir)
+
+if __name__ == '__main__':
+	main()
