@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 # convert exefs to elf
 import sys
 import os
@@ -55,19 +56,23 @@ def doit(tempdir, fn):
 
 	# exheader:
 	#   0x10: .text CSI
+	#   0x1c: stack size
 	#   0x20: .ro CSI
+	#   0x2c: (padding)
 	#   0x30: .data CSI
 	#   0x3c: .bss size
-	# CSI:
+	# CSI (size: 0x0c):
 	#   0x00: addr
 	#   0x04: physical region size in pages
 	#   0x08: section size in bytes
-	(textBase, textSize, roSize, rwSize, bssSize) = struct.unpack('16x I4xI4x 4x4xI4x 4x4xII', exh)
+	(textBase, textSize, roBase, roSize, rwBase, rwSize, bssSize) = struct.unpack('16x I4xI4x I4xI4x I4xII', exh)
 	#bssSize = page_align(bssSize)
 
 	print("textBase: {:08x}".format(textBase))
 	print("textSize: {:08x}".format(textSize))
+	print("roBase:   {:08x}".format(roBase))
 	print("roSize:   {:08x}".format(roSize))
+	print("rwBase:   {:08x}".format(rwBase))
 	print("rwSize:   {:08x}".format(rwSize))
 	print("bssSize:  {:08x}".format(bssSize))
 
@@ -82,7 +87,12 @@ def doit(tempdir, fn):
 	with open('e2elf.ld', 'r') as f:
 		ldscript = f.read()
 
-	ldscript = ldscript.replace('%memorigin%', str(textBase))
+	ldscript = ldscript.replace('%textbase%', str(textBase))
+	ldscript = ldscript.replace('%textlength%', str(textSize))
+	ldscript = ldscript.replace('%robase%', str(roBase))
+	ldscript = ldscript.replace('%rolength%', str(roSize))
+	ldscript = ldscript.replace('%rwbase%', str(rwBase))
+	ldscript = ldscript.replace('%rwlength%', str(rwSize + bssSize))
 	ldscript = ldscript.replace('%bsssize%', str(bssSize))
 	write_file(e2elf, ldscript)
 
