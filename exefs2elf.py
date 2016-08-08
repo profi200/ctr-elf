@@ -117,6 +117,7 @@ def doit(tempdir, fn):
 		objfiles.append(os.path.join(exefs, desc + ".o"))
 
 	call([LD, '--accept-unknown-input-arch', '-T', e2elf, '-o', final] + objfiles)
+	print "[+] Successfully saved file to {}".format(final_name)
 
 def main():
 	if len(sys.argv) != 2:
