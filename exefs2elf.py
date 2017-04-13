@@ -102,7 +102,7 @@ def doit(tempdir, fn):
     ldscript = ldscript.replace('%rwbase%', str(rwBase))
     ldscript = ldscript.replace('%rwlength%', str(rwSize + bssSize))
     ldscript = ldscript.replace('%bsssize%', str(bssSize))
-    write_file(e2elf, ldscript)
+    write_file(e2elf, bytes(ldscript, 'ascii'))
 
     write_file(os.path.join(exefs, 'text.bin'), text)
     write_file(os.path.join(exefs, 'ro.bin'), ro)
