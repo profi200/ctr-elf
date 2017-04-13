@@ -52,7 +52,7 @@ def doit(tempdir, fn):
     call([CTRTOOL, "-x", "--exheader=" + exhbin, fn])
 
     if not os.path.isfile(exhbin):
-        print "Error: {} does not exist.".format(exhbin)
+        print("Error: {} does not exist.".format(exhbin))
         return
 
     with open(exhbin, "rb") as f:
@@ -70,7 +70,7 @@ def doit(tempdir, fn):
     #   0x04: physical region size in pages
     #   0x08: section size in bytes
     if len(exh) < 64:
-        print "Error: could not read exheader size."
+        print("Error: could not read exheader size.")
         return
 
     (textBase, textSize, roBase, roSize, rwBase, rwSize,
