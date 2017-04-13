@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # convert exefs to elf
 import sys
 import os
@@ -73,8 +73,8 @@ def doit(tempdir, fn):
         print "Error: could not read exheader size."
         return
 
-    (textBase, textSize, roBase, roSize, rwBase, rwSize, bssSize) = struct.unpack('16x I4xI4x I4xI4x I4xII', exh)
-    #bssSize = page_align(bssSize)
+    (textBase, textSize, roBase, roSize, rwBase, rwSize,
+     bssSize) = struct.unpack('16x I4xI4x I4xI4x I4xII', exh)
 
     print("textBase: {:08x}".format(textBase))
     print("textSize: {:08x}".format(textSize))
@@ -116,8 +116,9 @@ def doit(tempdir, fn):
                     os.path.join(exefs, desc+".o")])
         objfiles.append(os.path.join(exefs, desc + ".o"))
 
-    call([LD, '--accept-unknown-input-arch', '-T', e2elf, '-o', final] + objfiles)
-    print "[+] Successfully saved file to {}".format(final_name)
+    call([LD, '--accept-unknown-input-arch', '-T', e2elf, '-o', final]
+         + objfiles)
+    print("[+] Successfully saved file to {}".format(final_name))
 
 def main():
     if len(sys.argv) != 2:
