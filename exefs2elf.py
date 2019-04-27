@@ -33,9 +33,6 @@ def read_file(path):
     with open(path, "rb") as f:
         return f.read()
 
-def page_align(address):
-    return ((address + (0x1000 - 1)) / 0x1000) * 0x1000
-
 def doit(tempdir, fn):
     exefs  = os.path.join(tempdir, 'exefs')
     exhbin = os.path.join(tempdir, 'exh.bin')
@@ -75,6 +72,12 @@ def doit(tempdir, fn):
 
     (textBase, textSize, roBase, roSize, rwBase, rwSize,
      bssSize) = struct.unpack('16x I4xI4x I4xI4x I4xII', exh)
+
+    # Align sizes
+    textSize = (textSize + 0x1000 - 1) & ~0xFFF
+    roSize = (roSize + 0x1000 - 1) & ~0xFFF
+    rwSize = (rwSize + 0x1000 - 1) & ~0xFFF
+    bssSize = (bssSize + 0x1000 - 1) & ~0xFFF
 
     print("textBase: {:08x}".format(textBase))
     print("textSize: {:08x}".format(textSize))
